@@ -1,0 +1,157 @@
+@model IEnumerable<InventorySystem.Web.Controllers.AssetsController.AssetListVM>
+
+@{
+    ViewData["Title"] = "Inventario";
+
+    var q      = (string?)ViewBag.FQ;
+    var locId  = (int?)ViewBag.FLoc;
+    var typeId = (int?)ViewBag.FType;
+    var staId  = (int?)ViewBag.FSta;
+    var w11Id  = (int?)ViewBag.FW11;
+
+    var locs  = (IEnumerable<dynamic>)ViewBag.Locations;
+    var types = (IEnumerable<dynamic>)ViewBag.Types;
+    var stats = (IEnumerable<dynamic>)ViewBag.Status;
+    var w11s  = (IEnumerable<dynamic>)ViewBag.Win11;
+}
+
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0">Inventario de equipos</h3>
+
+        @* Botón para crear nuevo equipo (solo ADMIN) *@
+        @if (User.IsInRole("ADMIN"))
+        {
+            <a asp-action="Create" class="btn btn-success">
+                + Nuevo equipo
+            </a>
+        }
+    </div>
+
+    @* Filtros *@
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-md-3">
+            <input name="q"
+                   value="@q"
+                   class="form-control"
+                   placeholder="Buscar: tag, serie, modelo, responsable" />
+        </div>
+
+        <div class="col-md-2">
+            <select name="typeId" class="form-select">
+                <option value="">Tipo</option>
+                @foreach (var t in types)
+                {
+                    <option value="@t.AssetTypeId"
+                            selected="@(typeId == (int?)t.AssetTypeId ? "selected" : null)">
+                        @t.Name
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <select name="locationId" class="form-select">
+                <option value="">Ubicación</option>
+                @foreach (var l in locs)
+                {
+                    <option value="@l.LocationId"
+                            selected="@(locId == (int?)l.LocationId ? "selected" : null)">
+                        @l.Name
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <select name="statusId" class="form-select">
+                <option value="">Estado</option>
+                @foreach (var s in stats)
+                {
+                    <option value="@s.EqStatusId"
+                            selected="@(staId == (int?)s.EqStatusId ? "selected" : null)">
+                        @s.Name
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <select name="win11Id" class="form-select">
+                <option value="">Windows 11</option>
+                @foreach (var w in w11s)
+                {
+                    <option value="@w.Win11StatusId"
+                            selected="@(w11Id == (int?)w.Win11StatusId ? "selected" : null)">
+                        @w.Name
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div class="col-md-1 d-grid">
+            <button class="btn btn-primary" type="submit">Filtrar</button>
+        </div>
+    </form>
+
+    @* Tabla de resultados *@
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Tag</th>
+                    <th>Tipo</th>
+                    <th>Marca</th>
+                    <th>Modelo</th>
+                    <th>Serie</th>
+                    <th>Ubicación</th>
+                    <th>Responsable</th>
+                    <th>Win11</th>
+                    <th>Estado</th>
+                    <th style="width: 210px;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var a in Model)
+                {
+                    <tr>
+                        <td>@a.AssetTag</td>
+                        <td>@a.Tipo</td>
+                        <td>@a.Marca</td>
+                        <td>@a.Modelo</td>
+                        <td>@a.Serie</td>
+                        <td>@a.Ubicacion</td>
+                        <td>@a.Responsable</td>
+                        <td>@a.Win11</td>
+                        <td>@a.Estado</td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a asp-action="Details"
+                                   asp-route-id="@a.AssetId"
+                                   class="btn btn-outline-secondary">
+                                    Detalles
+                                </a>
+
+                                @if (User.IsInRole("ADMIN"))
+                                {
+                                    <a asp-action="Edit"
+                                       asp-route-id="@a.AssetId"
+                                       class="btn btn-outline-primary">
+                                        Editar
+                                    </a>
+
+                                    <a asp-action="Decommission"
+                                       asp-route-id="@a.AssetId"
+                                       class="btn btn-outline-danger">
+                                        Baja
+                                    </a>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

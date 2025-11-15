@@ -1,0 +1,103 @@
+﻿@using System.Security.Claims
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - InventorySystem.Web</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/InventorySystem.Web.styles.css" asp-append-version="true" />
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-light bg-white border-bottom box-shadow mb-3">
+            <div class="container-fluid">
+                <a class="navbar-brand" asp-controller="Home" asp-action="Index">InventorySystem.Web</a>
+
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+                        aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-collapse" id="mainNav">
+                    <ul class="navbar-nav me-auto mb-2 mb-sm-0">
+                        @if (User?.Identity != null && User.Identity.IsAuthenticated)
+                        {
+                            <!-- Comunes para cualquier usuario logueado -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="/MisEquipos">Mis equipos</a>
+                        </li>
+
+                            if (User.IsInRole("ADMIN"))
+                            {
+                        <li class="nav-item">
+                            <a class="nav-link" href="/Dashboard">Dashboard</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/Assets">Inventario</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/AdminUsers">Usuarios</a>
+                        </li>
+                            }
+                        }
+                        else
+                        {
+                        <li class="nav-item">
+                            <a class="nav-link" href="/Home/Privacy">Privacy</a>
+                        </li>
+                        }
+                    </ul>
+
+                    <ul class="navbar-nav ms-auto">
+                        @if (User?.Identity != null && User.Identity.IsAuthenticated)
+                        {
+                            var displayName = User.FindFirst(ClaimTypes.Name)?.Value ?? "Usuario";
+                        <li class="nav-item">
+                            <span class="navbar-text me-2">Hola, @displayName</span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="btn btn-outline-danger btn-sm" href="/Login/Logout">Salir</a>
+                        </li>
+                        }
+                        else
+                        {
+                        <li class="nav-item">
+                            <a class="btn btn-primary btn-sm" href="/Login">Iniciar sesión</a>
+                        </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container">
+        <!-- Alertas de éxito -->
+        @if (TempData["ok"] is string ok && !string.IsNullOrWhiteSpace(ok))
+        {
+        <div class="alert alert-success alert-dismissible fade show mt-2" role="alert">
+            @ok
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        }
+
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted mt-4">
+        <div class="container">
+            &copy; @DateTime.Now.Year - InventorySystem.Web
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
+

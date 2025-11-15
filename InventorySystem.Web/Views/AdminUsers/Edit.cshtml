@@ -1,0 +1,47 @@
+@model InventorySystem.Web.Data.Entities.AppUser
+@{
+    ViewData["Title"] = "Editar usuario";
+}
+<div class="container mt-4" style="max-width:720px;">
+    <h3>Editar usuario</h3>
+    <form method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="UserId" />
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Nombre / Código (JER01)</label>
+                <input asp-for="Name" class="form-control" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Email</label>
+                <input asp-for="Email" class="form-control" />
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Rol</label>
+                <select asp-for="Role" class="form-select">
+                    <option>USER</option>
+                    <option>ADMIN</option>
+                </select>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Activo</label>
+                <select asp-for="Active" class="form-select">
+                    <option value="true">Sí</option>
+                    <option value="false">No</option>
+                </select>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Forzar cambio al entrar</label>
+                <select asp-for="MustChangePassword" class="form-select">
+                    <option value="true">Sí</option>
+                    <option value="false">No</option>
+                </select>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary">Guardar</button>
+            <a class="btn btn-secondary" href="/AdminUsers">Cancelar</a>
+        </div>
+        <div class="text-danger mt-3">@Html.ValidationSummary()</div>
+    </form>
+</div>

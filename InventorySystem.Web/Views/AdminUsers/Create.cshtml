@@ -1,0 +1,51 @@
+@model InventorySystem.Web.Data.Entities.AppUser
+@{
+    ViewData["Title"] = "Nuevo usuario";
+}
+<div class="container mt-4" style="max-width:720px;">
+    <h3>Nuevo usuario</h3>
+    <form method="post">
+        @Html.AntiForgeryToken()
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Nombre / Código (JER01)</label>
+                <input asp-for="Name" class="form-control" />
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Email (opcional si usas código)</label>
+                <input asp-for="Email" class="form-control" />
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Rol</label>
+                <select asp-for="Role" class="form-select">
+                    <option>USER</option>
+                    <option>ADMIN</option>
+                </select>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Activo</label>
+                <select asp-for="Active" class="form-select">
+                    <option value="true">Sí</option>
+                    <option value="false">No</option>
+                </select>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">¿Forzar cambio al entrar?</label>
+                <select asp-for="MustChangePassword" class="form-select">
+                    <option value="true">Sí</option>
+                    <option value="false">No</option>
+                </select>
+            </div>
+            <div class="col-12 mb-3">
+                <label class="form-label">Contraseña inicial (opcional)</label>
+                <input name="password" type="password" class="form-control" placeholder="Si la dejas vacía, se genera temporal" />
+                <small class="text-muted">Si la dejas vacía, se crea una temporal segura (se mostrará arriba de la lista).</small>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-success">Guardar</button>
+            <a class="btn btn-secondary" href="/AdminUsers">Cancelar</a>
+        </div>
+        <div class="text-danger mt-3">@Html.ValidationSummary()</div>
+    </form>
+</div>

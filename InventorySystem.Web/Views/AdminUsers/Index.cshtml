@@ -1,0 +1,87 @@
+@model IEnumerable<InventorySystem.Web.Data.Entities.AppUser>
+    @{
+    ViewData["Title"] = "Usuarios";
+    var q = (string?)ViewBag.Q ?? "";
+    var role = (string?)ViewBag.Role ?? "ALL";
+    var state = (string?)ViewBag.State ?? "ALL";
+    }
+    <div class="container mt-4">
+        <h3 class="mb-3">Usuarios</h3>
+
+        @if (TempData["ok"] is string ok) {
+        <div class="alert alert-success">@ok</div>
+  }
+
+        <form method="get" class="row g-2 mb-3">
+            <div class="col-md-4">
+                <input name="q" value="@q" class="form-control" placeholder="Buscar por nombre o email" />
+            </div>
+            <div class="col-md-3">
+                <select name="role" class="form-select">
+                    <option value="ALL" selected="@(role=="ALL")">Rol: Todos</option>
+                    <option value="ADMIN" selected="@(role=="ADMIN")">ADMIN</option>
+                    <option value="USER" selected="@(role=="USER")">USER</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="state" class="form-select">
+                    <option value="ALL" selected="@(state=="ALL")">Estado: Todos</option>
+                    <option value="ACTIVE" selected="@(state=="ACTIVE")">Activos</option>
+                    <option value="INACTIVE" selected="@(state=="INACTIVE")">Inactivos</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-grid">
+                <button class="btn btn-primary">Filtrar</button>
+            </div>
+        </form>
+
+        <div class="mb-3">
+            <a class="btn btn-success" href="/AdminUsers/Create">+ Nuevo usuario</a>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Email / Usuario</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th style="width:260px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var u in Model)
+      {
+                    <tr>
+                        <td>@u.Name</td>
+                        <td>@(string.IsNullOrWhiteSpace(u.Email) ? u.Name : u.Email)</td>
+                        <td><span class="badge bg-secondary">@u.Role</span></td>
+                        <td>
+                            @if (u.Active) { <span class="badge bg-success">Activo</span> }
+            else { <span class="badge bg-danger">Inactivo</span> }
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                <a class="btn btn-sm btn-outline-primary" href="/AdminUsers/Edit/@u.UserId">Editar</a>
+
+                                <form method="post" action="/AdminUsers/ToggleActive/@u.UserId" class="ms-2">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-sm @(u.Active ? "btn-outline-warning" : "btn-outline-success")">
+                                        @(u.Active ? "Desactivar" : "Activar")
+                                    </button>
+                                </form>
+
+                                <form method="post" action="/AdminUsers/ResetPassword/@u.UserId" class="ms-2"
+                                      onsubmit="return confirm('¿Resetear contraseña temporal?')">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-sm btn-outline-danger">Reset Pass</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+      }
+                </tbody>
+            </table>
+        </div>
+    </div>
