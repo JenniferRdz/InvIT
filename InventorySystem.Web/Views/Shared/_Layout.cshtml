@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - InventorySystem.Web</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/chatbot.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/InventorySystem.Web.styles.css" asp-append-version="true" />
 </head>
@@ -24,7 +25,6 @@
                     <ul class="navbar-nav me-auto mb-2 mb-sm-0">
                         @if (User?.Identity != null && User.Identity.IsAuthenticated)
                         {
-                            <!-- Comunes para cualquier usuario logueado -->
                         <li class="nav-item">
                             <a class="nav-link" href="/MisEquipos">Mis equipos</a>
                         </li>
@@ -53,7 +53,7 @@
                     <ul class="navbar-nav ms-auto">
                         @if (User?.Identity != null && User.Identity.IsAuthenticated)
                         {
-                            var displayName = User.FindFirst(ClaimTypes.Name)?.Value ?? "Usuario";
+                           var displayName = User.FindFirst(ClaimTypes.Name)?.Value ?? "Usuario";
                         <li class="nav-item">
                             <span class="navbar-text me-2">Hola, @displayName</span>
                         </li>
@@ -74,7 +74,8 @@
     </header>
 
     <div class="container">
-        <!-- Alertas de éxito -->
+
+        @* Alertas de éxito *@
         @if (TempData["ok"] is string ok && !string.IsNullOrWhiteSpace(ok))
         {
         <div class="alert alert-success alert-dismissible fade show mt-2" role="alert">
@@ -94,10 +95,16 @@
         </div>
     </footer>
 
+    <!-- LIBRERÍAS -->
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+
     @await RenderSectionAsync("Scripts", required: false)
+
+    <!-- CHATBOT (PARCIAL Y SCRIPT) -->
+    @await Html.PartialAsync("_Chatbot")
+    <script src="~/js/chatbot.js"></script>
+
 </body>
 </html>
-
