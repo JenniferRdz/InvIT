@@ -1,31 +1,24 @@
-using System.Diagnostics;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using InventorySystem.Web.Models;
 
-namespace InventorySystem.Web.Controllers;
-
-public class HomeController : Controller
+namespace InventorySystem.Web.Controllers
 {
-    private readonly ILogger<HomeController> _logger;
-
-    public HomeController(ILogger<HomeController> logger)
+    public class HomeController : Controller
     {
-        _logger = logger;
-    }
+        public IActionResult Index()
+        {
+            if (!User.Identity?.IsAuthenticated ?? true)
+                return RedirectToAction("Login", "Account");
 
-    public IActionResult Index()
-    {
-        return View();
-    }
+            if (User.IsInRole("ADMIN"))
+                return RedirectToAction("Index", "Dashboard");
 
-    public IActionResult Privacy()
-    {
-        return View();
-    }
+            return RedirectToAction("Index", "MisEquipos");
+        }
 
-    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-    public IActionResult Error()
-    {
-        return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        public IActionResult Privacy()
+        {
+            return View();
+        }
     }
 }

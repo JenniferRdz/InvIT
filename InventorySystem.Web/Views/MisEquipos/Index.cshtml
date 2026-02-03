@@ -1,2 +1,83 @@
+@model InventorySystem.Web.Models.MisEquiposIndexVM
+@{
+    ViewData["Title"] = "Mis equipos";
+}
+
 <h2>Mis Equipos</h2>
-<p>Busca tu equipo, agenda mantenimiento y crea aviso.</p>
+<p class="text-muted">Busca tu equipo, agenda mantenimiento y revisa alertas.</p>
+
+@if (TempData["Msg"] != null)
+{
+<div class="alert alert-success">@TempData["Msg"]</div>
+}
+
+<form method="get" class="d-flex gap-2 mb-3">
+    <input name="q" value="@Model.Q" class="form-control" placeholder="Buscar por AssetTag, serie, modelo o responsable..." />
+    <button class="btn btn-primary">Buscar</button>
+</form>
+
+@if (Model.Equipos == null || Model.Equipos.Count == 0)
+{
+<div class="alert alert-info">No se encontraron equipos.</div>
+}
+else
+{
+<div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+        <thead>
+            <tr>
+                <th>AssetTag</th>
+                <th>Modelo</th>
+                <th>Serie</th>
+                <th>Ubicación</th>
+                <th>Responsable</th>
+                <th>Windows 11</th>
+                <th>Estado</th>
+                <th>Último</th>
+                <th>Próximo</th>
+                <th>Alerta</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var e in Model.Equipos)
+            {
+                string badge = e.Alerta == "OVERDUE" ? "bg-danger"
+                             : e.Alerta == "SOON" ? "bg-warning text-dark"
+                             : e.Alerta == "OK" ? "bg-success"
+                             : "bg-secondary";
+
+                string rowClass = e.Alerta == "OVERDUE" ? "table-danger"
+                                : e.Alerta == "SOON" ? "table-warning"
+                                : e.Alerta == "OK" ? "table-success"
+                                : "";
+
+            <tr class="@rowClass">
+                <td>@e.AssetTag</td>
+                <td>@e.Modelo</td>
+                <td>@e.Serie</td>
+                <td>@e.Ubicacion</td>
+                <td>@e.Responsable</td>
+                <td>@e.Win11</td>
+                <td>@e.Estado</td>
+                <td>@(e.UltimoMantenimiento == null ? "-" : e.UltimoMantenimiento.Value.ToString("dd/MM/yyyy"))</td>
+                <td>@(e.ProximoMantenimiento == null ? "-" : e.ProximoMantenimiento.Value.ToString("dd/MM/yyyy"))</td>
+                <td><span class="badge @badge">@e.AlertaTexto</span></td>
+                <td class="text-end">
+                    <a class="btn btn-sm btn-outline-primary"
+                       asp-action="ScheduleMaintenance"
+                       asp-route-id="@e.AssetId">
+                        Programar mantenimiento
+                    </a>
+                    <a class="btn btn-sm btn-outline-secondary"
+                       asp-action="History"
+                       asp-route-id="@e.AssetId">
+                        Historial
+                    </a>
+                </td>
+            </tr>
+            }
+        </tbody>
+    </table>
+</div>
+}

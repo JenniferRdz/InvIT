@@ -1,2 +1,146 @@
-<h2>Dashboard (ADMIN)</h2>
-<p>KPIs y próximos mantenimientos aparecerán aquí.</p>
+@model InventorySystem.Web.Models.DashboardVM
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<h2 class="mb-1">Dashboard (ADMIN)</h2>
+<p class="text-muted">KPIs generales del inventario y estatus Windows 11.</p>
+
+@if (TempData["Msg"] != null)
+{
+<div class="alert alert-success">@TempData["Msg"]</div>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-muted">Total de equipos</div>
+                <div class="fw-bold" style="font-size:32px;">@Model.TotalEquipos</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-muted">Activos</div>
+                <div class="fw-bold text-success" style="font-size:32px;">@Model.EquiposActivos</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-muted">En reparación</div>
+                <div class="fw-bold text-warning" style="font-size:32px;">@Model.EquiposEnReparacion</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-muted">Baja</div>
+                <div class="fw-bold text-danger" style="font-size:32px;">@Model.EquiposBaja</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h4 class="mb-2">Windows 11</h4>
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-muted">Actualizado</div>
+                <div class="fw-bold text-success" style="font-size:28px;">@Model.Win11Actualizado</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-muted">En proceso</div>
+                <div class="fw-bold text-warning" style="font-size:28px;">@Model.Win11EnProceso</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-muted">No cumple</div>
+                <div class="fw-bold text-danger" style="font-size:28px;">@Model.Win11NoCumple</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr class="my-4" />
+
+<h4 class="mb-2">Próximos mantenimientos (30 días) + vencidos</h4>
+
+@if (Model.Proximos == null || Model.Proximos.Count == 0)
+{
+<div class="alert alert-info">No hay mantenimientos programados para los próximos 30 días.</div>
+}
+else
+{
+<div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Próximo</th>
+                <th>Último</th>
+                <th>Frecuencia</th>
+                <th>AssetTag</th>
+                <th>Modelo</th>
+                <th>Ubicación</th>
+                <th>Responsable</th>
+                <th>Alerta</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var x in Model.Proximos)
+            {
+                string badge = x.Alerta == "OVERDUE" ? "bg-danger"
+                             : x.Alerta == "SOON" ? "bg-warning text-dark"
+                             : "bg-success";
+
+                string txt = x.Alerta == "OVERDUE" ? "Vencido"
+                            : x.Alerta == "SOON" ? "Próximo"
+                            : "En regla";
+
+            <tr>
+                <td>@x.NextDue.ToString("dd/MM/yyyy")</td>
+                <td>@(x.LastDone == null ? "-" : x.LastDone.Value.ToString("dd/MM/yyyy"))</td>
+                <td>@x.FrecuenciaMeses meses</td>
+                <td>@x.AssetTag</td>
+                <td>@x.Modelo</td>
+                <td>@x.Ubicacion</td>
+                <td>@x.Responsable</td>
+                <td><span class="badge @badge">@txt</span></td>
+                <td class="text-end">
+                    <a class="btn btn-sm btn-outline-success"
+                       asp-controller="Dashboard"
+                       asp-action="MarkDone"
+                       asp-route-id="@x.ScheduleId">
+                        Marcar como hecho
+                    </a>
+                    <a class="btn btn-sm btn-outline-secondary"
+                       asp-controller="MisEquipos"
+                       asp-action="History"
+                       asp-route-id="@x.AssetId">
+                        Historial
+                    </a>
+                </td>
+            </tr>
+            }
+        </tbody>
+    </table>
+</div>
+}

@@ -13,7 +13,7 @@ public partial class MaintenanceSchedule
 
     public string Frequency { get; set; } = null!;
 
-    public DateOnly? LastDone { get; set; }
+    public DateOnly? LastDone { get;  set; }
 
     public DateOnly NextDue { get; set; }
 

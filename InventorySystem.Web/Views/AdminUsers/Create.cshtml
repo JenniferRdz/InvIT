@@ -2,50 +2,84 @@
 @{
     ViewData["Title"] = "Nuevo usuario";
 }
+
 <div class="container mt-4" style="max-width:720px;">
+
     <h3>Nuevo usuario</h3>
-    <form method="post">
+
+    @* Mensaje (por ejemplo: "Usuario creado. Contraseña temporal: ...") *@
+    @if (TempData["ok"] != null)
+    {
+    <div class="alert alert-success">
+        @TempData["ok"]
+    </div>
+    }
+
+    <form asp-action="Create" asp-controller="AdminUsers" method="post">
         @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
         <div class="row">
             <div class="col-md-6 mb-3">
                 <label class="form-label">Nombre / Código (JER01)</label>
                 <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
             </div>
+
             <div class="col-md-6 mb-3">
                 <label class="form-label">Email (opcional si usas código)</label>
                 <input asp-for="Email" class="form-control" />
+                <span asp-validation-for="Email" class="text-danger"></span>
             </div>
+
             <div class="col-md-4 mb-3">
                 <label class="form-label">Rol</label>
                 <select asp-for="Role" class="form-select">
-                    <option>USER</option>
-                    <option>ADMIN</option>
+                    <option value="USER">USER</option>
+                    <option value="ADMIN">ADMIN</option>
                 </select>
+                <span asp-validation-for="Role" class="text-danger"></span>
             </div>
+
             <div class="col-md-4 mb-3">
                 <label class="form-label">Activo</label>
                 <select asp-for="Active" class="form-select">
                     <option value="true">Sí</option>
                     <option value="false">No</option>
                 </select>
+                <span asp-validation-for="Active" class="text-danger"></span>
             </div>
+
             <div class="col-md-4 mb-3">
                 <label class="form-label">¿Forzar cambio al entrar?</label>
                 <select asp-for="MustChangePassword" class="form-select">
                     <option value="true">Sí</option>
                     <option value="false">No</option>
                 </select>
+                <span asp-validation-for="MustChangePassword" class="text-danger"></span>
             </div>
+
             <div class="col-12 mb-3">
                 <label class="form-label">Contraseña inicial (opcional)</label>
-                <input name="password" type="password" class="form-control" placeholder="Si la dejas vacía, se genera temporal" />
-                <small class="text-muted">Si la dejas vacía, se crea una temporal segura (se mostrará arriba de la lista).</small>
+                <input name="password"
+                       type="password"
+                       class="form-control"
+                       placeholder="Si la dejas vacía, se genera temporal"
+                       autocomplete="new-password" />
+                <small class="text-muted">
+                    Si la dejas vacía, se crea una temporal segura (se mostrará arriba de la lista).
+                </small>
             </div>
         </div>
+
         <div class="d-flex gap-2">
-            <button class="btn btn-success">Guardar</button>
-            <a class="btn btn-secondary" href="/AdminUsers">Cancelar</a>
+            <button type="submit" class="btn btn-success">Guardar</button>
+            <a class="btn btn-secondary" asp-action="Index" asp-controller="AdminUsers">Cancelar</a>
         </div>
-        <div class="text-danger mt-3">@Html.ValidationSummary()</div>
     </form>
 </div>
+
+@section Scripts{
+    <partial name="_ValidationScriptsPartial" />
+}

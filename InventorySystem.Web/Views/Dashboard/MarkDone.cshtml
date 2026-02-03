@@ -1,0 +1,54 @@
+@model InventorySystem.Web.Models.MarkDoneVM
+@{
+    ViewData["Title"] = "Marcar mantenimiento como hecho";
+}
+
+<h2 class="mb-2">Marcar como hecho</h2>
+<p class="text-muted">Equipo: <strong>@Model.AssetTag</strong> (@Model.Modelo) - @Model.Ubicacion</p>
+
+<div class="card">
+    <div class="card-body">
+        <form asp-action="MarkDone" method="post">
+            <input type="hidden" asp-for="ScheduleId" />
+            <input type="hidden" asp-for="AssetId" />
+            <input type="hidden" asp-for="FrecuenciaMeses" />
+
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label asp-for="FechaRealizada" class="form-label">Fecha realizada</label>
+                    <input asp-for="FechaRealizada" class="form-control" type="date" />
+                    <span asp-validation-for="FechaRealizada" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="MtypeId" class="form-label">Tipo de mantenimiento</label>
+                    <select asp-for="MtypeId" asp-items="Model.Types" class="form-select">
+                        <option value="">-- Selecciona --</option>
+                    </select>
+                    <span asp-validation-for="MtypeId" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Frecuencia</label>
+                    <input class="form-control" value="@Model.FrecuenciaMeses meses" readonly />
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="Notes" class="form-label">Notas</label>
+                    <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+                </div>
+            </div>
+
+            <div class="mt-3 d-flex justify-content-between">
+                <a asp-action="Index" class="btn btn-outline-secondary">Volver</a>
+                <button type="submit" class="btn btn-success">Guardar como hecho</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts{
+    <partial name="_ValidationScriptsPartial" />
+}

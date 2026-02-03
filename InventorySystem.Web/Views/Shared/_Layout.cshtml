@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - InventorySystem.Web</title>
+    <title>@ViewData["Title"] - Real Alloy</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/chatbot.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -14,7 +14,7 @@
     <header>
         <nav class="navbar navbar-expand-sm navbar-light bg-white border-bottom box-shadow mb-3">
             <div class="container-fluid">
-                <a class="navbar-brand" asp-controller="Home" asp-action="Index">InventorySystem.Web</a>
+                <a class="navbar-brand" asp-controller="Home" asp-action="Index">Real Alloy</a>
 
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
                         aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -91,7 +91,7 @@
 
     <footer class="border-top footer text-muted mt-4">
         <div class="container">
-            &copy; @DateTime.Now.Year - InventorySystem.Web
+            &copy; @DateTime.Now.Year - Real Alloy
         </div>
     </footer>
 
@@ -101,10 +101,6 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
 
     @await RenderSectionAsync("Scripts", required: false)
-
-    <!-- CHATBOT (PARCIAL Y SCRIPT) -->
-    @await Html.PartialAsync("_Chatbot")
-    <script src="~/js/chatbot.js"></script>
 
 </body>
 </html>

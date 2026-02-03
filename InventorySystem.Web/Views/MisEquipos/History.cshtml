@@ -1,0 +1,47 @@
+﻿@model InventorySystem.Web.Models.MaintenanceHistoryVM
+@{
+    ViewData["Title"] = "Historial";
+}
+
+<h2>Historial de mantenimiento</h2>
+
+<div class="mb-3">
+    <div><strong>AssetTag:</strong> @Model.AssetTag</div>
+    <div><strong>Modelo:</strong> @Model.Modelo</div>
+    <div><strong>Serie:</strong> @Model.Serie</div>
+    <div><strong>Ubicación:</strong> @Model.Ubicacion</div>
+    <div><strong>Responsable:</strong> @Model.Responsable</div>
+</div>
+
+<a class="btn btn-outline-secondary mb-3" asp-action="Index">← Volver</a>
+
+@if (Model.Items == null || Model.Items.Count == 0)
+{
+<div class="alert alert-info">Este equipo no tiene mantenimientos registrados aún.</div>
+}
+else
+{
+<div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Registrado por</th>
+                <th>Notas</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var m in Model.Items)
+            {
+            <tr>
+                <td>@m.PerformedOn.ToString("dd/MM/yyyy")</td>
+                <td>@m.Tipo</td>
+                <td>@(string.IsNullOrWhiteSpace(m.PerformedBy) ? "-" : m.PerformedBy)</td>
+                <td>@(string.IsNullOrWhiteSpace(m.Notes) ? "-" : m.Notes)</td>
+            </tr>
+            }
+        </tbody>
+    </table>
+</div>
+}

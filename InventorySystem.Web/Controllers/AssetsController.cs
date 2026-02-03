@@ -1,11 +1,13 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using InventorySystem.Web.Data;
 using InventorySystem.Web.Data.Entities;
+using InventorySystem.Web.Models; // ✅ para AssetFormViewModel
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering; // ✅ SelectListItem
 using Microsoft.EntityFrameworkCore;
 
 namespace InventorySystem.Web.Controllers
@@ -21,7 +23,7 @@ namespace InventorySystem.Web.Controllers
         }
 
         // ===========================
-        // ViewModels internos
+        // ViewModels internos (se quedan para Index/Edit/Decommission)
         // ===========================
         public class AssetListVM
         {
@@ -55,12 +57,12 @@ namespace InventorySystem.Web.Controllers
 
             public int? Win11StatusId { get; set; }
 
-            // Estado l�gico del equipo (Activo / En reparaci�n / Baja)
+            // Estado lógico del equipo (Activo / En reparación / Baja)
             public int? EqStatusId { get; set; }
 
             public string? Comments { get; set; }
 
-            // Cat�logos para combos
+            // Catálogos para combos
             public IEnumerable<AssetType>? Types { get; set; }
             public IEnumerable<Brand>? Brands { get; set; }
             public IEnumerable<ModelCatalog>? Models { get; set; }
@@ -88,7 +90,7 @@ namespace InventorySystem.Web.Controllers
         }
 
         // ===========================
-        // Helpers cat�logos
+        // Helpers catálogos (para EDIT)
         // ===========================
         private async Task LoadCatalogsAsync(AssetEditVM vm)
         {
@@ -98,6 +100,30 @@ namespace InventorySystem.Web.Controllers
             vm.Locations = await _db.Locations.OrderBy(x => x.Name).ToListAsync();
             vm.Statuses = await _db.EquipmentStatuses.OrderBy(x => x.Name).ToListAsync();
             vm.Win11Statuses = await _db.Win11Statuses.OrderBy(x => x.Name).ToListAsync();
+        }
+
+        // ✅ Helpers catálogos (para CREATE con AssetFormViewModel)
+        private async Task LoadCatalogsAsync(AssetFormViewModel vm)
+        {
+            vm.AssetTypes = await _db.AssetTypes
+                .OrderBy(x => x.Name)
+                .Select(x => new SelectListItem { Value = x.AssetTypeId.ToString(), Text = x.Name })
+                .ToListAsync();
+
+            vm.Brands = await _db.Brands
+                .OrderBy(x => x.Name)
+                .Select(x => new SelectListItem { Value = x.BrandId.ToString(), Text = x.Name })
+                .ToListAsync();
+
+            vm.Locations = await _db.Locations
+                .OrderBy(x => x.Name)
+                .Select(x => new SelectListItem { Value = x.LocationId.ToString(), Text = x.Name })
+                .ToListAsync();
+
+            vm.Win11Statuses = await _db.Win11Statuses
+                .OrderBy(x => x.Name)
+                .Select(x => new SelectListItem { Value = x.Win11StatusId.ToString(), Text = x.Name })
+                .ToListAsync();
         }
 
         // ===========================
@@ -191,28 +217,19 @@ namespace InventorySystem.Web.Controllers
         }
 
         // ===========================
-        // CREAR
+        // ✅ CREAR (CORREGIDO PARA TU VISTA AssetFormViewModel)
         // ===========================
         [HttpGet]
         public async Task<IActionResult> Create()
         {
-            var vm = new AssetEditVM();
-
-            // por defecto, estado "Activo" si existe
-            var activoId = await _db.EquipmentStatuses
-                .Where(e => e.Name == "Activo")
-                .Select(e => (int?)e.EqStatusId)
-                .FirstOrDefaultAsync();
-
-            vm.EqStatusId = activoId;
-
+            var vm = new AssetFormViewModel();
             await LoadCatalogsAsync(vm);
             return View(vm);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(AssetEditVM vm)
+        public async Task<IActionResult> Create(AssetFormViewModel vm)
         {
             if (!ModelState.IsValid)
             {
@@ -220,9 +237,25 @@ namespace InventorySystem.Web.Controllers
                 return View(vm);
             }
 
-            if (!vm.EqStatusId.HasValue)
+            // (Opcional) evitar duplicado AssetTag
+            var exists = await _db.Assets.AnyAsync(a => a.AssetTag == vm.AssetTag.Trim());
+            if (exists)
             {
-                ModelState.AddModelError(nameof(vm.EqStatusId), "Debes seleccionar un estado del equipo.");
+                ModelState.AddModelError(nameof(vm.AssetTag), "Ya existe un equipo con ese Asset Tag.");
+                await LoadCatalogsAsync(vm);
+                return View(vm);
+            }
+
+            // Estado por defecto "Activo" si existe
+            var activoId = await _db.EquipmentStatuses
+                .Where(e => e.Name == "Activo")
+                .Select(e => (int?)e.EqStatusId)
+                .FirstOrDefaultAsync();
+
+            if (!activoId.HasValue)
+            {
+                // Si no existe "Activo" en catálogo, evita crash
+                ModelState.AddModelError("", "No existe el estado 'Activo' en el catálogo EquipmentStatuses.");
                 await LoadCatalogsAsync(vm);
                 return View(vm);
             }
@@ -232,13 +265,14 @@ namespace InventorySystem.Web.Controllers
                 AssetTag = vm.AssetTag.Trim(),
                 AssetTypeId = vm.AssetTypeId,
                 BrandId = vm.BrandId,
-                ModelId = vm.ModelId,
+                // En tu vista usas ModelText (texto), no usas ModelCatalog
+                ModelId = null,
                 ModelText = string.IsNullOrWhiteSpace(vm.ModelText) ? null : vm.ModelText.Trim(),
-                SerialNumber = vm.SerialNumber.Trim(),
+                SerialNumber = string.IsNullOrWhiteSpace(vm.SerialNumber) ? "" : vm.SerialNumber.Trim(),
                 LocationId = vm.LocationId,
                 Assignee = string.IsNullOrWhiteSpace(vm.Assignee) ? null : vm.Assignee.Trim(),
                 Win11StatusId = vm.Win11StatusId,
-                EqStatusId = vm.EqStatusId.Value,
+                EqStatusId = activoId.Value,
                 Comments = string.IsNullOrWhiteSpace(vm.Comments) ? null : vm.Comments.Trim(),
                 CreatedAt = DateTime.Now,
                 UpdatedAt = DateTime.Now
@@ -322,7 +356,7 @@ namespace InventorySystem.Web.Controllers
         }
 
         // ===========================
-        // BAJA L�GICA (DECOMMISSION)
+        // BAJA LÓGICA (DECOMMISSION)
         // ===========================
         [HttpGet]
         public async Task<IActionResult> Decommission(int id)
@@ -387,4 +421,3 @@ namespace InventorySystem.Web.Controllers
         }
     }
 }
-
