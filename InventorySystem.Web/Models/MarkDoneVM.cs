@@ -19,7 +19,7 @@ namespace InventorySystem.Web.Models
         public DateTime? FechaRealizada { get; set; }
 
         [Required(ErrorMessage = "Selecciona el tipo de mantenimiento.")]
-        public int MtypeId { get; set; } // <- INT (no nullable)
+        public int MtypeId { get; set; } 
 
         public List<SelectListItem> Types { get; set; } = new();
         public string? Notes { get; set; }

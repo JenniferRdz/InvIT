@@ -16,14 +16,20 @@ namespace InventorySystem.Web.Controllers
     {
         private readonly InventoryContext _db;
 
+        private const string ENTITY_ASSET = "ASSET";
+
         public MisEquiposController(InventoryContext db)
         {
             _db = db;
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index(string? q)
+        public async Task<IActionResult> Index(string? q, int page = 1, int pageSize = 10)
         {
+            if (page < 1) page = 1;
+            if (pageSize < 5) pageSize = 5;
+            if (pageSize > 100) pageSize = 100;
+
             var today = DateOnly.FromDateTime(DateTime.Today);
             var soonLimit = today.AddDays(7);
 
@@ -44,15 +50,22 @@ namespace InventorySystem.Web.Controllers
                     (a.Assignee != null && a.Assignee.Contains(k)));
             }
 
+            var total = await assetsQuery.CountAsync();
+            var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+            if (totalPages == 0) totalPages = 1;
+            if (page > totalPages) page = totalPages;
+
             var assets = await assetsQuery
                 .OrderBy(a => a.AssetTag)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
             var assetIds = assets.Select(a => a.AssetId).ToList();
 
             var schedules = await _db.MaintenanceSchedules
                 .AsNoTracking()
-                .Where(s => s.EntityType == "Asset" && assetIds.Contains(s.EntityId))
+                .Where(s => s.EntityType == ENTITY_ASSET && assetIds.Contains(s.EntityId))
                 .ToListAsync();
 
             var schedByAsset = schedules
@@ -66,10 +79,7 @@ namespace InventorySystem.Web.Controllers
 
                 if (schedByAsset.TryGetValue(a.AssetId, out var sched))
                 {
-                    // LastDone sí puede ser null
                     lastDone = sched.LastDone;
-
-                    // NextDue NO puede ser null en tu entidad, pero si no existe schedule, queda null
                     nextDue = sched.NextDue;
                 }
 
@@ -97,7 +107,6 @@ namespace InventorySystem.Web.Controllers
                     alertaTexto = "En regla";
                 }
 
-                // Convertimos DateOnly? -> DateTime? para tu VM
                 DateTime? lastDoneDt = lastDone.HasValue
                     ? lastDone.Value.ToDateTime(TimeOnly.MinValue)
                     : (DateTime?)null;
@@ -131,12 +140,15 @@ namespace InventorySystem.Web.Controllers
                 Equipos = rows
             };
 
+            ViewBag.Page = page;
+            ViewBag.PageSize = pageSize;
+            ViewBag.Total = total;
+            ViewBag.TotalPages = totalPages;
+
             return View(vm);
         }
 
-        // =========================================================
-        // PROGRAMAR MANTENIMIENTO (Plan en MaintenanceSchedule)
-        // =========================================================
+        // PROGRAMAR MANTENIMIENTO
         [HttpGet]
         public async Task<IActionResult> ScheduleMaintenance(int id)
         {
@@ -182,7 +194,7 @@ namespace InventorySystem.Web.Controllers
 
             var date = DateOnly.FromDateTime(vm.Date.Value);
 
-            // Validaciones según tipo
+            // PREVENTIVO: guarda/actualiza MaintenanceSchedule
             if (vm.Tipo == "Preventivo")
             {
                 if (vm.FrecuenciaMeses != 3 && vm.FrecuenciaMeses != 6)
@@ -191,18 +203,16 @@ namespace InventorySystem.Web.Controllers
                     return View(vm);
                 }
 
-                // Crear/Actualizar schedule
                 var sched = await _db.MaintenanceSchedules
-                    .FirstOrDefaultAsync(s => s.EntityType == "Asset" && s.EntityId == asset.AssetId);
+                    .FirstOrDefaultAsync(s => s.EntityType == ENTITY_ASSET && s.EntityId == asset.AssetId);
 
                 if (sched == null)
                 {
                     sched = new MaintenanceSchedule
                     {
-                        EntityType = "Asset",
+                        EntityType = ENTITY_ASSET,
                         EntityId = asset.AssetId,
                         Frequency = $"{vm.FrecuenciaMeses}M",
-                        // OJO: tu CHECK constraint NO acepta "ACTIVO"
                         Status = "EN_CURSO",
                         LastDone = null,
                         NextDue = date,
@@ -215,7 +225,6 @@ namespace InventorySystem.Web.Controllers
                     sched.Frequency = $"{vm.FrecuenciaMeses}M";
                     sched.Status = "EN_CURSO";
                     sched.NextDue = date;
-                    // no tocamos LastDone aquí
                 }
 
                 await _db.SaveChangesAsync();
@@ -223,7 +232,7 @@ namespace InventorySystem.Web.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // Correctivo: solo historial (Maintenance)
+            // CORRECTIVO: solo historial (Maintenance)
             if (vm.Tipo == "Correctivo")
             {
                 if (vm.MtypeId <= 0)
@@ -234,7 +243,7 @@ namespace InventorySystem.Web.Controllers
 
                 var m = new Maintenance
                 {
-                    EntityType = "Asset",
+                    EntityType = ENTITY_ASSET,
                     EntityId = asset.AssetId,
                     MtypeId = vm.MtypeId,
                     PerformedOn = date,
@@ -250,14 +259,11 @@ namespace InventorySystem.Web.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // Si llega aquí, tipo inválido
             ModelState.AddModelError(nameof(vm.Tipo), "Tipo inválido.");
             return View(vm);
         }
 
-        // =========================================================
         // HISTORIAL
-        // =========================================================
         [HttpGet]
         public async Task<IActionResult> History(int id)
         {
@@ -272,7 +278,7 @@ namespace InventorySystem.Web.Controllers
             var items = await _db.Maintenances
                 .AsNoTracking()
                 .Include(m => m.Mtype)
-                .Where(m => m.EntityType == "Asset" && m.EntityId == id)
+                .Where(m => m.EntityType == ENTITY_ASSET && m.EntityId == id)
                 .OrderByDescending(m => m.PerformedOn)
                 .Select(m => new MaintenanceHistoryRow
                 {
@@ -298,9 +304,6 @@ namespace InventorySystem.Web.Controllers
             return View(vm);
         }
 
-        // =========================================================
-        // Helpers
-        // =========================================================
         private async Task LoadMaintenanceTypes(ProgramarMantenimientoVM vm)
         {
             vm.Types = await _db.MaintenanceTypes

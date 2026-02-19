@@ -1,6 +1,14 @@
 @model InventorySystem.Web.Models.MisEquiposIndexVM
 @{
     ViewData["Title"] = "Mis equipos";
+
+    var page = (int)(ViewBag.Page ?? 1);
+    var pageSize = (int)(ViewBag.PageSize ?? 20);
+    var total = (int)(ViewBag.Total ?? 0);
+    var totalPages = (int)(ViewBag.TotalPages ?? 1);
+
+    string BuildUrl(int p) =>
+        Url.Action("Index", new { q = Model.Q, page = p, pageSize = pageSize }) ?? "#";
 }
 
 <h2>Mis Equipos</h2>
@@ -13,6 +21,8 @@
 
 <form method="get" class="d-flex gap-2 mb-3">
     <input name="q" value="@Model.Q" class="form-control" placeholder="Buscar por AssetTag, serie, modelo o responsable..." />
+    <input type="hidden" name="page" value="1" />
+    <input type="hidden" name="pageSize" value="@pageSize" />
     <button class="btn btn-primary">Buscar</button>
 </form>
 
@@ -41,16 +51,16 @@ else
         </thead>
         <tbody>
             @foreach (var e in Model.Equipos)
-            {
-                string badge = e.Alerta == "OVERDUE" ? "bg-danger"
-                             : e.Alerta == "SOON" ? "bg-warning text-dark"
-                             : e.Alerta == "OK" ? "bg-success"
-                             : "bg-secondary";
+                {
+                    string badge = e.Alerta == "OVERDUE" ? "bg-danger"
+                                 : e.Alerta == "SOON" ? "bg-warning text-dark"
+                                 : e.Alerta == "OK" ? "bg-success"
+                                 : "bg-secondary";
 
-                string rowClass = e.Alerta == "OVERDUE" ? "table-danger"
-                                : e.Alerta == "SOON" ? "table-warning"
-                                : e.Alerta == "OK" ? "table-success"
-                                : "";
+                    string rowClass = e.Alerta == "OVERDUE" ? "table-danger"
+                                    : e.Alerta == "SOON" ? "table-warning"
+                                    : e.Alerta == "OK" ? "table-success"
+                                    : "";
 
             <tr class="@rowClass">
                 <td>@e.AssetTag</td>
@@ -64,20 +74,53 @@ else
                 <td>@(e.ProximoMantenimiento == null ? "-" : e.ProximoMantenimiento.Value.ToString("dd/MM/yyyy"))</td>
                 <td><span class="badge @badge">@e.AlertaTexto</span></td>
                 <td class="text-end">
-                    <a class="btn btn-sm btn-outline-primary"
-                       asp-action="ScheduleMaintenance"
-                       asp-route-id="@e.AssetId">
-                        Programar mantenimiento
-                    </a>
-                    <a class="btn btn-sm btn-outline-secondary"
-                       asp-action="History"
-                       asp-route-id="@e.AssetId">
-                        Historial
-                    </a>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a class="btn btn-sm btn-outline-primary text-nowrap"
+                           style="min-width:190px;"
+                           asp-action="ScheduleMaintenance"
+                           asp-route-id="@e.AssetId">
+                            Programar mantenimiento
+                        </a>
+
+                        <a class="btn btn-sm btn-outline-secondary text-nowrap"
+                           style="min-width:120px;"
+                           asp-action="History"
+                           asp-route-id="@e.AssetId">
+                            Historial
+                        </a>
+                    </div>
                 </td>
             </tr>
-            }
+                }
         </tbody>
     </table>
 </div>
+
+<div class="d-flex justify-content-between align-items-center mt-2">
+    <div class="text-muted">
+    </div>
+</div>
+
+<nav aria-label="Paginación" class="mt-2">
+    <ul class="pagination justify-content-center">
+        <li class="page-item @(page<=1 ? "disabled" : "")">
+            <a class="page-link" href="@BuildUrl(page-1)">Anterior</a>
+        </li>
+
+        @{
+                var from = Math.Max(1, page - 2);
+                var to = Math.Min(totalPages, page + 2);
+                for (int p = from; p <= to; p++)
+                {
+            <li class="page-item @(p==page ? "active" : "")">
+                <a class="page-link" href="@BuildUrl(p)">@p</a>
+            </li>
+                }
+        }
+
+        <li class="page-item @(page>=totalPages ? "disabled" : "")">
+            <a class="page-link" href="@BuildUrl(page+1)">Siguiente</a>
+        </li>
+    </ul>
+</nav>
 }

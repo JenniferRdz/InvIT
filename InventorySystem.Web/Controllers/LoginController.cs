@@ -50,7 +50,7 @@ public class LoginController : Controller
             new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
             new Claim(ClaimTypes.Name, user.Name ?? username),
             new Claim(ClaimTypes.Email, user.Email ?? username),
-            new Claim(ClaimTypes.Role, user.Role) // ADMIN o USER
+            new Claim(ClaimTypes.Role, user.Role) 
         };
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));

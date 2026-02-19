@@ -4,10 +4,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using InventorySystem.Web.Data;
 using InventorySystem.Web.Data.Entities;
-using InventorySystem.Web.Models; // ✅ para AssetFormViewModel
+using InventorySystem.Web.Models; 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering; // ✅ SelectListItem
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 
 namespace InventorySystem.Web.Controllers
@@ -22,9 +22,6 @@ namespace InventorySystem.Web.Controllers
             _db = db;
         }
 
-        // ===========================
-        // ViewModels internos (se quedan para Index/Edit/Decommission)
-        // ===========================
         public class AssetListVM
         {
             public int AssetId { get; set; }
@@ -57,12 +54,10 @@ namespace InventorySystem.Web.Controllers
 
             public int? Win11StatusId { get; set; }
 
-            // Estado lógico del equipo (Activo / En reparación / Baja)
             public int? EqStatusId { get; set; }
 
             public string? Comments { get; set; }
 
-            // Catálogos para combos
             public IEnumerable<AssetType>? Types { get; set; }
             public IEnumerable<Brand>? Brands { get; set; }
             public IEnumerable<ModelCatalog>? Models { get; set; }
@@ -89,9 +84,6 @@ namespace InventorySystem.Web.Controllers
             public IEnumerable<DecommissionReason>? Reasons { get; set; }
         }
 
-        // ===========================
-        // Helpers catálogos (para EDIT)
-        // ===========================
         private async Task LoadCatalogsAsync(AssetEditVM vm)
         {
             vm.Types = await _db.AssetTypes.OrderBy(x => x.Name).ToListAsync();
@@ -102,7 +94,6 @@ namespace InventorySystem.Web.Controllers
             vm.Win11Statuses = await _db.Win11Statuses.OrderBy(x => x.Name).ToListAsync();
         }
 
-        // ✅ Helpers catálogos (para CREATE con AssetFormViewModel)
         private async Task LoadCatalogsAsync(AssetFormViewModel vm)
         {
             vm.AssetTypes = await _db.AssetTypes
@@ -126,18 +117,28 @@ namespace InventorySystem.Web.Controllers
                 .ToListAsync();
         }
 
-        // ===========================
-        // INDEX (lista + filtros)
-        // ===========================
         [HttpGet]
-        public async Task<IActionResult> Index(string? q, int? locationId, int? typeId, int? statusId, int? win11Id)
+        public async Task<IActionResult> Index(
+    string? q,
+    int? locationId,
+    int? typeId,
+    int? statusId,
+    int? win11Id,
+    int page = 1,
+    int pageSize = 10
+)
         {
+            if (pageSize < 5) pageSize = 5;
+            if (pageSize > 200) pageSize = 200;
+            if (page < 1) page = 1;
+
             ViewBag.Locations = await _db.Locations.OrderBy(x => x.Name).ToListAsync();
             ViewBag.Types = await _db.AssetTypes.OrderBy(x => x.Name).ToListAsync();
             ViewBag.Status = await _db.EquipmentStatuses.OrderBy(x => x.Name).ToListAsync();
             ViewBag.Win11 = await _db.Win11Statuses.OrderBy(x => x.Name).ToListAsync();
 
             var query = _db.Assets
+                .AsNoTracking()
                 .Include(a => a.AssetType)
                 .Include(a => a.Brand)
                 .Include(a => a.Model)
@@ -168,8 +169,16 @@ namespace InventorySystem.Web.Controllers
             if (win11Id.HasValue)
                 query = query.Where(a => a.Win11StatusId == win11Id);
 
+            var total = await query.CountAsync();
+
+            var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+            if (totalPages < 1) totalPages = 1;
+            if (page > totalPages) page = totalPages;
+
             var list = await query
                 .OrderBy(a => a.AssetTag)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(a => new AssetListVM
                 {
                     AssetId = a.AssetId,
@@ -191,12 +200,15 @@ namespace InventorySystem.Web.Controllers
             ViewBag.FSta = statusId;
             ViewBag.FW11 = win11Id;
 
+            ViewBag.Page = page;
+            ViewBag.PageSize = pageSize;
+            ViewBag.Total = total;
+            ViewBag.TotalPages = totalPages;
+
             return View(list);
         }
 
-        // ===========================
         // DETALLES
-        // ===========================
         [HttpGet]
         public async Task<IActionResult> Details(int id)
         {
@@ -216,9 +228,7 @@ namespace InventorySystem.Web.Controllers
             return View(asset);
         }
 
-        // ===========================
-        // ✅ CREAR (CORREGIDO PARA TU VISTA AssetFormViewModel)
-        // ===========================
+        // CREAR 
         [HttpGet]
         public async Task<IActionResult> Create()
         {
@@ -237,7 +247,6 @@ namespace InventorySystem.Web.Controllers
                 return View(vm);
             }
 
-            // (Opcional) evitar duplicado AssetTag
             var exists = await _db.Assets.AnyAsync(a => a.AssetTag == vm.AssetTag.Trim());
             if (exists)
             {
@@ -246,7 +255,6 @@ namespace InventorySystem.Web.Controllers
                 return View(vm);
             }
 
-            // Estado por defecto "Activo" si existe
             var activoId = await _db.EquipmentStatuses
                 .Where(e => e.Name == "Activo")
                 .Select(e => (int?)e.EqStatusId)
@@ -254,7 +262,6 @@ namespace InventorySystem.Web.Controllers
 
             if (!activoId.HasValue)
             {
-                // Si no existe "Activo" en catálogo, evita crash
                 ModelState.AddModelError("", "No existe el estado 'Activo' en el catálogo EquipmentStatuses.");
                 await LoadCatalogsAsync(vm);
                 return View(vm);
@@ -265,7 +272,6 @@ namespace InventorySystem.Web.Controllers
                 AssetTag = vm.AssetTag.Trim(),
                 AssetTypeId = vm.AssetTypeId,
                 BrandId = vm.BrandId,
-                // En tu vista usas ModelText (texto), no usas ModelCatalog
                 ModelId = null,
                 ModelText = string.IsNullOrWhiteSpace(vm.ModelText) ? null : vm.ModelText.Trim(),
                 SerialNumber = string.IsNullOrWhiteSpace(vm.SerialNumber) ? "" : vm.SerialNumber.Trim(),
@@ -285,9 +291,7 @@ namespace InventorySystem.Web.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // ===========================
         // EDITAR
-        // ===========================
         [HttpGet]
         public async Task<IActionResult> Edit(int id)
         {
@@ -355,9 +359,7 @@ namespace InventorySystem.Web.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // ===========================
         // BAJA LÓGICA (DECOMMISSION)
-        // ===========================
         [HttpGet]
         public async Task<IActionResult> Decommission(int id)
         {

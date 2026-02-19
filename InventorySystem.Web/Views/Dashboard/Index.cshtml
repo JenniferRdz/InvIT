@@ -1,6 +1,13 @@
 @model InventorySystem.Web.Models.DashboardVM
 @{
     ViewData["Title"] = "Dashboard";
+
+    var page = (int)(ViewBag.Page ?? 1);
+    var pageSize = (int)(ViewBag.PageSize ?? 20);
+    var total = (int)(ViewBag.Total ?? 0);
+    var totalPages = (int)(ViewBag.TotalPages ?? 1);
+
+    string BuildUrl(int p) => Url.Action("Index", "Dashboard", new { page = p, pageSize = pageSize }) ?? "#";
 }
 
 <h2 class="mb-1">Dashboard (ADMIN)</h2>
@@ -106,14 +113,14 @@ else
         </thead>
         <tbody>
             @foreach (var x in Model.Proximos)
-            {
-                string badge = x.Alerta == "OVERDUE" ? "bg-danger"
-                             : x.Alerta == "SOON" ? "bg-warning text-dark"
-                             : "bg-success";
+                {
+                    string badge = x.Alerta == "OVERDUE" ? "bg-danger"
+                                 : x.Alerta == "SOON" ? "bg-warning text-dark"
+                                 : "bg-success";
 
-                string txt = x.Alerta == "OVERDUE" ? "Vencido"
-                            : x.Alerta == "SOON" ? "Próximo"
-                            : "En regla";
+                    string txt = x.Alerta == "OVERDUE" ? "Vencido"
+                               : x.Alerta == "SOON" ? "Próximo"
+                               : "En regla";
 
             <tr>
                 <td>@x.NextDue.ToString("dd/MM/yyyy")</td>
@@ -125,12 +132,14 @@ else
                 <td>@x.Responsable</td>
                 <td><span class="badge @badge">@txt</span></td>
                 <td class="text-end">
+                <td class="text-end">
                     <a class="btn btn-sm btn-outline-success"
                        asp-controller="Dashboard"
                        asp-action="MarkDone"
                        asp-route-id="@x.ScheduleId">
                         Marcar como hecho
                     </a>
+
                     <a class="btn btn-sm btn-outline-secondary"
                        asp-controller="MisEquipos"
                        asp-action="History"
@@ -138,9 +147,41 @@ else
                         Historial
                     </a>
                 </td>
+
+                </td>
             </tr>
-            }
+                }
         </tbody>
     </table>
 </div>
+
+<div class="d-flex justify-content-between align-items-center mt-2">
+    <div class="text-muted">
+        Página <strong>@(page)</strong> de <strong>@(totalPages)</strong> — Total: <strong>@total</strong>
+    </div>
+</div>
+
+<nav aria-label="Paginación" class="mt-2">
+    <ul class="pagination justify-content-center">
+        <li class="page-item @(page<=1 ? "disabled" : "")">
+            <a class="page-link" href="@BuildUrl(page-1)">Anterior</a>
+        </li>
+
+        @{
+                var from = Math.Max(1, page - 2);
+                var to = Math.Min(totalPages, page + 2);
+
+                for (int p = from; p <= to; p++)
+                {
+            <li class="page-item @(p==page ? "active" : "")">
+                <a class="page-link" href="@BuildUrl(p)">@p</a>
+            </li>
+                }
+        }
+
+        <li class="page-item @(page>=totalPages ? "disabled" : "")">
+            <a class="page-link" href="@BuildUrl(page+1)">Siguiente</a>
+        </li>
+    </ul>
+</nav>
 }

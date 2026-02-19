@@ -20,96 +20,128 @@ namespace InventorySystem.Web.Controllers
         {
             _db = db;
         }
-
+        // DASHBOARD (INDEX) 
         [HttpGet]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int page = 1, int pageSize = 10)
         {
+            if (page < 1) page = 1;
+            if (pageSize < 5) pageSize = 5;
+            if (pageSize > 100) pageSize = 100;
+
             var vm = new DashboardVM();
 
             vm.TotalEquipos = await _db.Assets.CountAsync();
 
-            var activoId = await _db.EquipmentStatuses.Where(x => x.Name == "Activo")
-                .Select(x => (int?)x.EqStatusId).FirstOrDefaultAsync();
-            var bajaId = await _db.EquipmentStatuses.Where(x => x.Name == "Baja")
-                .Select(x => (int?)x.EqStatusId).FirstOrDefaultAsync();
+            var activoId = await _db.EquipmentStatuses
+                .Where(x => x.Name == "Activo")
+                .Select(x => (int?)x.EqStatusId)
+                .FirstOrDefaultAsync();
+
+            var bajaId = await _db.EquipmentStatuses
+                .Where(x => x.Name == "Baja")
+                .Select(x => (int?)x.EqStatusId)
+                .FirstOrDefaultAsync();
+
             var repId = await _db.EquipmentStatuses
                 .Where(x => x.Name == "En reparación" || x.Name == "En reparacion")
-                .Select(x => (int?)x.EqStatusId).FirstOrDefaultAsync();
+                .Select(x => (int?)x.EqStatusId)
+                .FirstOrDefaultAsync();
 
             if (activoId.HasValue) vm.EquiposActivos = await _db.Assets.CountAsync(a => a.EqStatusId == activoId.Value);
             if (bajaId.HasValue) vm.EquiposBaja = await _db.Assets.CountAsync(a => a.EqStatusId == bajaId.Value);
             if (repId.HasValue) vm.EquiposEnReparacion = await _db.Assets.CountAsync(a => a.EqStatusId == repId.Value);
 
-            var w11Act = await _db.Win11Statuses.Where(x => x.Name == "Actualizado")
-                .Select(x => (int?)x.Win11StatusId).FirstOrDefaultAsync();
-            var w11Proc = await _db.Win11Statuses.Where(x => x.Name == "En proceso")
-                .Select(x => (int?)x.Win11StatusId).FirstOrDefaultAsync();
-            var w11No = await _db.Win11Statuses.Where(x => x.Name == "No cumple")
-                .Select(x => (int?)x.Win11StatusId).FirstOrDefaultAsync();
+            var w11Act = await _db.Win11Statuses
+                .Where(x => x.Name == "Actualizado")
+                .Select(x => (int?)x.Win11StatusId)
+                .FirstOrDefaultAsync();
+
+            var w11Proc = await _db.Win11Statuses
+                .Where(x => x.Name == "En proceso")
+                .Select(x => (int?)x.Win11StatusId)
+                .FirstOrDefaultAsync();
+
+            var w11No = await _db.Win11Statuses
+                .Where(x => x.Name == "No cumple")
+                .Select(x => (int?)x.Win11StatusId)
+                .FirstOrDefaultAsync();
 
             if (w11Act.HasValue) vm.Win11Actualizado = await _db.Assets.CountAsync(a => a.Win11StatusId == w11Act.Value);
             if (w11Proc.HasValue) vm.Win11EnProceso = await _db.Assets.CountAsync(a => a.Win11StatusId == w11Proc.Value);
             if (w11No.HasValue) vm.Win11NoCumple = await _db.Assets.CountAsync(a => a.Win11StatusId == w11No.Value);
 
-            // ================================
-            // Próximos 30 días + vencidos
-            // status permitido por CHECK: OK | EN_CURSO | CANCELADO (según tu constraint)
-            // ================================
+            // Próximos mantenimientos (30 días) + vencidos 
             var today = DateOnly.FromDateTime(DateTime.Today);
             var limit = today.AddDays(30);
 
-            var schedules = await _db.MaintenanceSchedules
-                .AsNoTracking()
-                .Where(s => s.EntityType == "Asset" && (s.NextDue <= limit || s.NextDue < today))
-                .OrderBy(s => s.NextDue)
-                .ToListAsync();
+            var baseQuery =
+                from s in _db.MaintenanceSchedules.AsNoTracking()
+                join a in _db.Assets.AsNoTracking()
+                    .Include(x => x.Location)
+                    .Include(x => x.Model)
+                on s.EntityId equals a.AssetId
+                where s.EntityType == "Asset"
+                      && s.NextDue <= limit
+                select new
+                {
+                    s.ScheduleId,
+                    s.EntityId,
+                    s.LastDone,     
+                    s.NextDue,      
+                    s.Frequency,
+                    a.AssetId,
+                    a.AssetTag,
+                    Modelo = a.Model != null ? a.Model.Name : (a.ModelText ?? ""),
+                    Ubicacion = a.Location != null ? a.Location.Name : "",
+                    Responsable = a.Assignee ?? ""
+                };
 
-            var assetIds = schedules.Select(s => s.EntityId).Distinct().ToList();
+            var total = await baseQuery.CountAsync();
+            var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+            if (totalPages == 0) totalPages = 1;
+            if (page > totalPages) page = totalPages;
 
-            var assets = await _db.Assets
-                .AsNoTracking()
-                .Include(a => a.Location)
-                .Include(a => a.Model)
-                .Where(a => assetIds.Contains(a.AssetId))
-                .ToListAsync();
+            var pageRows = await baseQuery
+                .OrderBy(x => x.NextDue) 
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();         
 
-            var assetById = assets.ToDictionary(a => a.AssetId, a => a);
-
-            vm.Proximos = schedules.Select(s =>
+            vm.Proximos = pageRows.Select(x =>
             {
-                var a = assetById.TryGetValue(s.EntityId, out var aa) ? aa : null;
-
-                var months = ParseFrequencyMonths(s.Frequency) ?? 3;
-
-                var nextDueDt = s.NextDue.ToDateTime(TimeOnly.MinValue);
-                DateTime? lastDoneDt = s.LastDone.HasValue ? s.LastDone.Value.ToDateTime(TimeOnly.MinValue) : null;
-
-                var alerta = (s.NextDue < today) ? "OVERDUE"
-                          : (s.NextDue <= today.AddDays(7)) ? "SOON"
-                          : "OK";
+                var freq = ParseFrequencyMonths(x.Frequency);
 
                 return new DashboardScheduleRow
                 {
-                    ScheduleId = s.ScheduleId,
-                    AssetId = s.EntityId,
-                    NextDue = nextDueDt,
-                    LastDone = lastDoneDt,
-                    FrecuenciaMeses = months,
+                    ScheduleId = x.ScheduleId,
+                    AssetId = x.AssetId,
+                    AssetTag = x.AssetTag,
+                    Modelo = x.Modelo,
+                    Ubicacion = x.Ubicacion,
+                    Responsable = x.Responsable,
+                    FrecuenciaMeses = freq,
 
-                    AssetTag = a?.AssetTag ?? "",
-                    Modelo = a?.Model?.Name ?? (a?.ModelText ?? ""),
-                    Ubicacion = a?.Location?.Name ?? "",
-                    Responsable = a?.Assignee ?? "",
-                    Alerta = alerta
+                    LastDone = x.LastDone.HasValue
+                        ? x.LastDone.Value.ToDateTime(TimeOnly.MinValue)
+                        : (DateTime?)null,
+
+                    NextDue = x.NextDue.ToDateTime(TimeOnly.MinValue),
+
+                    Alerta = (x.NextDue < today) ? "OVERDUE"
+                          : (x.NextDue <= today.AddDays(7)) ? "SOON"
+                          : "OK"
                 };
             }).ToList();
+
+            ViewBag.Page = page;
+            ViewBag.PageSize = pageSize;
+            ViewBag.Total = total;
+            ViewBag.TotalPages = totalPages;
 
             return View(vm);
         }
 
-        // ==================================
-        // GET: Marcar como hecho
-        // ==================================
+        // MARCAR COMO HECHO (GET)
         [HttpGet]
         public async Task<IActionResult> MarkDone(int id)
         {
@@ -127,15 +159,15 @@ namespace InventorySystem.Web.Controllers
 
             if (asset == null) return NotFound();
 
-            var months = ParseFrequencyMonths(sched.Frequency) ?? 3;
+            var months = ParseFrequencyMonths(sched.Frequency);
 
             var vm = new MarkDoneVM
             {
                 ScheduleId = sched.ScheduleId,
                 AssetId = asset.AssetId,
                 AssetTag = asset.AssetTag,
-                Modelo = asset.Model?.Name ?? asset.ModelText,
-                Ubicacion = asset.Location?.Name,
+                Modelo = asset.Model?.Name ?? asset.ModelText ?? "",
+                Ubicacion = asset.Location?.Name ?? "",
                 FrecuenciaMeses = months,
                 FechaRealizada = DateTime.Today
             };
@@ -144,9 +176,7 @@ namespace InventorySystem.Web.Controllers
             return View(vm);
         }
 
-        // ==================================
-        // POST: Marcar como hecho
-        // ==================================
+        // MARCAR COMO HECHO (POST)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> MarkDone(MarkDoneVM vm)
@@ -175,9 +205,10 @@ namespace InventorySystem.Web.Controllers
 
             var doneDate = DateOnly.FromDateTime(vm.FechaRealizada.Value);
 
+            // Frecuencia por seguridad: solo 3 o 6
             var freqMonths = (vm.FrecuenciaMeses == 6) ? 6 : 3;
 
-            // 1) Guardar historial en Maintenance
+            // 1) Guardar historial
             var m = new Maintenance
             {
                 EntityType = "Asset",
@@ -193,8 +224,6 @@ namespace InventorySystem.Web.Controllers
             // 2) Actualizar plan
             sched.LastDone = doneDate;
             sched.NextDue = doneDate.AddMonths(freqMonths);
-
-            // OJO: tu CHECK constraint permite: OK, EN_CURSO, CANCELADO
             sched.Status = "OK";
 
             await _db.SaveChangesAsync();
@@ -203,9 +232,6 @@ namespace InventorySystem.Web.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // ==================================
-        // Helpers
-        // ==================================
         private async Task LoadMaintenanceTypes(MarkDoneVM vm)
         {
             vm.Types = await _db.MaintenanceTypes
@@ -219,13 +245,15 @@ namespace InventorySystem.Web.Controllers
                 .ToListAsync();
         }
 
-        private int? ParseFrequencyMonths(string? frequency)
+        private static int ParseFrequencyMonths(string? frequency)
         {
-            if (string.IsNullOrWhiteSpace(frequency)) return null;
-            var f = frequency.Trim().ToUpperInvariant(); // "3M"
-            if (!f.EndsWith("M")) return null;
-            var num = f[..^1];
-            return int.TryParse(num, out var m) ? m : null;
+            if (string.IsNullOrWhiteSpace(frequency)) return 3; 
+
+            var f = frequency.Trim().ToUpperInvariant();
+            if (f.EndsWith("M") && int.TryParse(f[..^1], out var months))
+                return months;
+
+            return 3;
         }
     }
 }

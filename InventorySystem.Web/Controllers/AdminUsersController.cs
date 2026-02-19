@@ -18,31 +18,45 @@ namespace InventorySystem.Web.Controllers
         public AdminUsersController(InventoryContext db) => _db = db;
 
         // GET: /AdminUsers
-        public async Task<IActionResult> Index(string q = "", string role = "ALL", string state = "ALL")
+        public async Task<IActionResult> Index(string q = "", string role = "ALL", string state = "ALL", int page = 1, int pageSize = 10)
         {
+            if (page < 1) page = 1;
+            if (pageSize < 5) pageSize = 5;
+            if (pageSize > 100) pageSize = 100;
+
             var query = _db.AppUsers.AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(q))
-            {
-                query = query.Where(u =>
-                    (u.Name != null && u.Name.Contains(q)) ||
-                    (u.Email != null && u.Email.Contains(q)));
-            }
+                query = query.Where(u => (u.Name != null && u.Name.Contains(q)) ||
+                                         (u.Email != null && u.Email.Contains(q)));
 
-            if (!string.Equals(role, "ALL", StringComparison.OrdinalIgnoreCase))
+            if (role != "ALL")
                 query = query.Where(u => u.Role == role);
 
             if (state == "ACTIVE") query = query.Where(u => u.Active);
             else if (state == "INACTIVE") query = query.Where(u => !u.Active);
 
-            var users = await query.OrderBy(u => u.Name).ToListAsync();
+            var total = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+            if (totalPages == 0) totalPages = 1;
+            if (page > totalPages) page = totalPages;
 
-            ViewBag.Q = q;
-            ViewBag.Role = role;
-            ViewBag.State = state;
+            var users = await query
+                .OrderBy(u => u.Name)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            ViewBag.Q = q; ViewBag.Role = role; ViewBag.State = state;
+
+            ViewBag.Page = page;
+            ViewBag.PageSize = pageSize;
+            ViewBag.Total = total;
+            ViewBag.TotalPages = totalPages;
 
             return View(users);
         }
+
 
         // GET: /AdminUsers/Create
         [HttpGet]
@@ -60,20 +74,16 @@ namespace InventorySystem.Web.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(AppUser model, string? password)
         {
-            // ✅ IMPORTANTE: Estos campos se calculan aquí, no vienen del formulario.
             ModelState.Remove(nameof(AppUser.PasswordHash));
             ModelState.Remove(nameof(AppUser.PasswordSalt));
             ModelState.Remove(nameof(AppUser.FailedLoginAttempts));
             ModelState.Remove(nameof(AppUser.LockoutUntil));
             ModelState.Remove(nameof(AppUser.LastPasswordChange));
-            ModelState.Remove(nameof(AppUser.CreatedAt)); // si tu tabla lo requiere y no lo mandas
-            // Si tu AppUser tiene otros campos NOT NULL que no están en el form, agrégalos aquí.
+            ModelState.Remove(nameof(AppUser.CreatedAt)); 
 
-            // Validación mínima: al menos Name o Email
             if (string.IsNullOrWhiteSpace(model.Email) && string.IsNullOrWhiteSpace(model.Name))
                 ModelState.AddModelError("", "Captura Email o Name (JER01).");
 
-            // Validación password si el admin la escribió
             if (!string.IsNullOrWhiteSpace(password))
             {
                 if (!PasswordPolicy.IsStrong(password, out var err))
@@ -83,7 +93,6 @@ namespace InventorySystem.Web.Controllers
             if (!ModelState.IsValid)
                 return View(model);
 
-            // Si no pasas password, generamos temporal segura y forzamos cambio
             string shownPassword;
             if (string.IsNullOrWhiteSpace(password))
             {
@@ -104,10 +113,6 @@ namespace InventorySystem.Web.Controllers
             model.FailedLoginAttempts = 0;
             model.LockoutUntil = null;
             model.LastPasswordChange = null;
-
-            // Si tu tabla maneja CreatedAt obligatorio y no lo asignas en DB:
-            // (Si tu campo existe en entidad)
-            // model.CreatedAt = DateTime.Now;
 
             _db.AppUsers.Add(model);
             await _db.SaveChangesAsync();
@@ -132,7 +137,6 @@ namespace InventorySystem.Web.Controllers
             var user = await _db.AppUsers.FindAsync(id);
             if (user == null) return NotFound();
 
-            // Si tu entidad tiene required en PasswordHash, etc, NO los toques aquí.
             ModelState.Remove(nameof(AppUser.PasswordHash));
             ModelState.Remove(nameof(AppUser.PasswordSalt));
             ModelState.Remove(nameof(AppUser.FailedLoginAttempts));
@@ -165,7 +169,6 @@ namespace InventorySystem.Web.Controllers
 
             user.Active = !user.Active;
 
-            // Si lo reactivas, limpia bloqueos
             if (user.Active)
             {
                 user.FailedLoginAttempts = 0;
@@ -202,7 +205,6 @@ namespace InventorySystem.Web.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // Utilidad: contraseña temporal fuerte y fácil
         private static string GenerateTempPassword()
         {
             // Formato: IT-<4 letras>-<4 números>!
